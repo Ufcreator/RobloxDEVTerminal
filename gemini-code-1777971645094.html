@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROBLOX DEV TERMINAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --accent: #00ffa3;
+            --danger: #ff0055;
+            --bg: #020202;
+            --panel: rgba(10, 10, 10, 0.9);
+            --border: rgba(0, 255, 163, 0.3);
+            --discord: #5865F2;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: var(--bg); 
+            color: #fff; 
+            font-family: 'JetBrains Mono', monospace; 
+            overflow-x: hidden;
+        }
+
+        canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.2; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; position: relative; }
+
+        /* Header UI */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; font-size: 0.8rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        
+        .lang-switcher {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 2px 8px;
+            cursor: pointer;
+            font-family: 'Orbitron';
+            font-size: 0.7rem;
+            transition: 0.3s;
+        }
+        .lang-switcher:hover { background: var(--accent); color: #000; }
+
+        /* Terminal Core */
+        .terminal {
+            background: var(--panel);
+            border: 2px solid var(--border);
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            box-shadow: 0 0 40px rgba(0, 255, 163, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .side-bar { padding: 30px; border-right: 2px solid var(--border); background: rgba(0, 255, 163, 0.02); }
+        .content-area { padding: 40px; }
+
+        /* Typography */
+        h1 { font-family: 'Orbitron'; font-size: 1.8rem; color: var(--accent); margin-bottom: 30px; text-transform: uppercase; letter-spacing: 2px; }
+        .label { font-size: 0.7rem; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; display: block; opacity: 0.7; }
+
+        /* Calculator UI */
+        .price-box { background: #000; border: 1px solid var(--border); padding: 20px; text-align: center; margin-bottom: 20px; }
+        .price-val { font-family: 'Orbitron'; font-size: 2.5rem; color: #fff; }
+        
+        input[type="range"] { width: 100%; accent-color: var(--accent); margin: 15px 0; cursor: pointer; }
+
+        /* Form Elements */
+        .field { margin-bottom: 25px; }
+        select, input, textarea {
+            width: 100%; background: #080808; border: 1px solid #222; padding: 12px;
+            color: var(--accent); font-family: 'JetBrains Mono'; outline: none; transition: 0.3s;
+        }
+        select:focus, input:focus, textarea:focus { border-color: var(--accent); background: #0c0c0c; }
+
+        .deadline-box { display: flex; justify-content: space-between; font-size: 0.6rem; color: #444; }
+
+        /* Buttons */
+        .execute-btn {
+            background: var(--accent); color: #000; border: none; padding: 20px;
+            width: 100%; font-family: 'Orbitron'; font-weight: 700; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s; clip-path: polygon(0 0, 100% 0, 100% 70%, 95% 100%, 0 100%);
+        }
+        .execute-btn:hover { background: #fff; transform: scale(1.02); box-shadow: 0 0 30px rgba(255,255,255,0.2); }
+
+        .discord-btn {
+            display: block; text-decoration: none; text-align: center;
+            background: var(--discord); color: #fff; padding: 12px; margin-top: 30px;
+            font-family: 'Orbitron'; font-size: 0.7rem; font-weight: 700;
+            clip-path: polygon(0 0, 100% 0, 100% 80%, 90% 100%, 0 100%);
+            transition: 0.3s;
+        }
+        .discord-btn:hover { opacity: 0.8; transform: translateY(-2px); }
+
+        /* Logging Box */
+        .logs { margin-top: 20px; background: #000; padding: 15px; font-size: 0.7rem; color: #444; height: 100px; overflow-y: hidden; border: 1px solid #111; }
+        .log-entry { margin-bottom: 5px; }
+        .log-entry.new { color: var(--accent); }
+
+        @media (max-width: 900px) { .terminal { grid-template-columns: 1fr; } .side-bar { border-right: none; border-bottom: 2px solid var(--border); } }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrix"></canvas>
+
+    <div class="container">
+        <div class="top-bar">
+            <span>SYSTEM: ROBLOX_DEV_CORE</span>
+            <div>
+                <button class="lang-switcher" onclick="toggleLang()" id="langBtn">EN</button>
+                <span id="clock" style="margin-left: 15px;">00:00:00</span>
+            </div>
+        </div>
+
+        <div class="terminal">
+            <aside class="side-bar">
+                <span class="label" data-key="label_budget">01 // Бюджет проекта</span>
+                <div class="price-box">
+                    <div class="price-val" id="priceOut">500 R$</div>
+                </div>
+                <input type="range" id="priceIn" min="100" max="10000" step="100" value="500">
+                
+                <div style="font-size: 0.7rem; color: #666; margin-bottom: 30px;">
+                    <span data-key="tax_label">Комиссия 30%:</span> <span id="taxOut" style="color: #fff;">714</span> R$<br>
+                    <span data-key="priority_label">Приоритет:</span> <span id="priorityOut" style="color: var(--accent);">NORMAL</span>
+                </div>
+
+                <span class="label" data-key="label_deadline">02 // Срок выполнения</span>
+                <input type="range" id="daysIn" min="1" max="30" value="7">
+                <div class="deadline-box">
+                    <span data-key="urgent">СРОЧНО</span>
+                    <span id="daysOut" style="color: #fff;">7 ДНЕЙ</span>
+                    <span data-key="month">МЕСЯЦ</span>
+                </div>
+
+                <a href="https://discord.gg/D4uxXZfQs" target="_blank" class="discord-btn">JOIN DISCORD SERVER</a>
+            </aside>
+
+            <main class="content-area">
+                <h1 id="mainTitle">Initial_Request.exe</h1>
+                
+                <form id="devForm">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="field">
+                            <span class="label" data-key="label_spec">Специализация</span>
+                            <select id="spec">
+                                <option value="SCRIPTER" data-key="opt_script">Скриптинг</option>
+                                <option value="BUILDER" data-key="opt_build">Билдинг</option>
+                                <option value="UI_UX" data-key="opt_ui">Интерфейсы</option>
+                                <option value="ANIMATOR" data-key="opt_anim">Анимация</option>
+                                <option value="MODELER" data-key="opt_model">3D Моделирование</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <span class="label" data-key="label_pay">Способ оплаты</span>
+                            <select id="payType">
+                                <option value="GROUP">Group Funds</option>
+                                <option value="GAMEPASS">Gamepass (+30%)</option>
+                                <option value="ROBUX_CARD">Robux Card</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <span class="label" data-key="label_discord">Discord Контакт</span>
+                        <input type="text" id="discord" placeholder="user_name#0000" required>
+                    </div>
+
+                    <div class="field">
+                        <span class="label" data-key="label_task">Техническое задание</span>
+                        <textarea id="task" rows="5" placeholder="Опишите проект детально..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="execute-btn" id="subBtn" data-key="btn_send">Выполнить отправку</button>
+                </form>
+
+                <div class="logs" id="logBox">
+                    <div class="log-entry" id="initialLog">> Инициализация системы... Готово.</div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/1500937786633748520/FlaEC-WspDOkS9MT9Pfji9CBDhN688dybAvRM5W1Im6eJ7ByJsX0S7ZfJ4w96sGfoaNB";
+        
+        // Локализация
+        let currentLang = 'ru';
+        const translations = {
+            ru: {
+                label_budget: "01 // Бюджет проекта",
+                tax_label: "Комиссия 30%:",
+                priority_label: "Приоритет:",
+                label_deadline: "02 // Срок выполнения",
+                urgent: "СРОЧНО",
+                month: "МЕСЯЦ",
+                label_spec: "Специализация",
+                label_pay: "Способ оплаты",
+                label_discord: "Discord Контакт",
+                label_task: "Техническое задание",
+                btn_send: "Выполнить отправку",
+                opt_script: "Скриптинг",
+                opt_build: "Билдинг",
+                opt_ui: "Интерфейсы",
+                opt_anim: "Анимация",
+                opt_model: "3D Моделирование",
+                days_suffix: " ДН.",
+                init_log: "Инициализация системы... Готово.",
+                placeholder_task: "Опишите проект детально...",
+                sending: "ОТПРАВКА...",
+                success: "Запрос доставлен.",
+                error: "Ошибка сервера."
+            },
+            en: {
+                label_budget: "01 // Project Budget",
+                tax_label: "Fee 30%:",
+                priority_label: "Priority:",
+                label_deadline: "02 // Deadline",
+                urgent: "URGENT",
+                month: "MONTH",
+                label_spec: "Specialization",
+                label_pay: "Payment Method",
+                label_discord: "Discord Contact",
+                label_task: "Task Description",
+                btn_send: "Execute Transmission",
+                opt_script: "Scripting",
+                opt_build: "Building",
+                opt_ui: "UI/UX Design",
+                opt_anim: "Animation",
+                opt_model: "3D Modeling",
+                days_suffix: " DAYS",
+                init_log: "System initialization... Ready.",
+                placeholder_task: "Describe project in detail...",
+                sending: "SENDING...",
+                success: "Request delivered.",
+                error: "Server error."
+            }
+        };
+
+        function toggleLang() {
+            currentLang = currentLang === 'ru' ? 'en' : 'ru';
+            document.getElementById('langBtn').innerText = currentLang === 'ru' ? 'EN' : 'RU';
+            updateLanguage();
+        }
+
+        function updateLanguage() {
+            const t = translations[currentLang];
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (t[key]) el.innerText = t[key];
+            });
+            document.getElementById('task').placeholder = t.placeholder_task;
+            updateCalc();
+        }
+
+        // Матричный фон
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#00ffa3";
+            ctx.font = fontSize + "px monospace";
+            for(let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 50);
+
+        const priceIn = document.getElementById('priceIn');
+        const priceOut = document.getElementById('priceOut');
+        const taxOut = document.getElementById('taxOut');
+        const priorityOut = document.getElementById('priorityOut');
+        const daysIn = document.getElementById('daysIn');
+        const daysOut = document.getElementById('daysOut');
+
+        function updateCalc() {
+            const val = parseInt(priceIn.value);
+            priceOut.innerText = val.toLocaleString() + " R$";
+            taxOut.innerText = Math.floor(val / 0.7).toLocaleString();
+            
+            if(val > 7000) { priorityOut.innerText = "CRITICAL"; priorityOut.style.color = "#ff0055"; }
+            else if(val > 3000) { priorityOut.innerText = "HIGH"; priorityOut.style.color = "#ffaa00"; }
+            else { priorityOut.innerText = "NORMAL"; priorityOut.style.color = "#00ffa3"; }
+
+            daysOut.innerText = daysIn.value + translations[currentLang].days_suffix;
+        }
+
+        priceIn.addEventListener('input', updateCalc);
+        daysIn.addEventListener('input', updateCalc);
+
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        function addLog(text) {
+            const box = document.getElementById('logBox');
+            const entry = document.createElement('div');
+            entry.className = "log-entry new";
+            entry.innerText = `> ${text}`;
+            box.prepend(entry);
+        }
+
+        const form = document.getElementById('devForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const t = translations[currentLang];
+            const btn = document.getElementById('subBtn');
+            btn.disabled = true;
+            btn.innerText = t.sending;
+            addLog(currentLang === 'ru' ? "Шифрование данных..." : "Encrypting data...");
+
+            const payload = {
+                username: "DEV_TERMINAL_CORE",
+                embeds: [{
+                    title: "📥 NEW SIGNAL RECEIVED",
+                    color: priceIn.value > 5000 ? 16711765 : 65443,
+                    fields: [
+                        { name: "👤 DISCORD", value: `\`${document.getElementById('discord').value}\``, inline: true },
+                        { name: "🛠 DEPT", value: `**${document.getElementById('spec').value}**`, inline: true },
+                        { name: "💰 BUDGET", value: `**${priceIn.value} R$**`, inline: true },
+                        { name: "⏳ TERM", value: `${daysIn.value} days`, inline: true },
+                        { name: "💳 PAY", value: document.getElementById('payType').value, inline: true },
+                        { name: "📋 TASK", value: "```" + document.getElementById('task').value + "```" }
+                    ],
+                    timestamp: new Date()
+                }]
+            };
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    addLog(t.success);
+                    alert(currentLang === 'ru' ? "Отправлено!" : "Sent!");
+                    form.reset();
+                    updateCalc();
+                } else { throw new Error(); }
+            } catch (err) {
+                addLog(t.error);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = t.btn_send;
+            }
+        });
+
+        updateLanguage();
+    </script>
+</body>
+</html>
